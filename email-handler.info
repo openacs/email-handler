@@ -12,10 +12,10 @@
         <database>postgresql</database>
     </database-support>
         <owner url="mailto:hqm@ai.mit.edu">Henry Minsky</owner>
-        <summary>Service to autmatically dispatch and process incoming email messages </summary>
+        <summary>Service to automatically dispatch and process incoming email messages.</summary>
         <release-date>2000-12-08</release-date>
         <vendor url="http://www.arsdigita.com/">ArsDigita Corporation</vendor>
-        <description format="text/plain">A service to autmatically dispatch and process incoming email messages.Email messages are tagged and inserted into a database table by an external script, and the email handler dispatches emails by tag to Tcl procedures to handle them. </description>
+        <description format="text/plain">A service to autmatically dispatch and process incoming email messages.  Email messages are tagged and inserted into a database table by an external script, and the email handler dispatches emails by tag to Tcl procedures to handle them.  See notifications for an alternative maildir based handler for inbound mail.</description>
 
         <provides url="email-handler" version="4.0.1"/>
         <requires url="acs-kernel" version="4.6.2"/>
