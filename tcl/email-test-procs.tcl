@@ -10,5 +10,5 @@ proc email_handler_test {msg} {
 
     db_dml "email_test" {insert into email_handler_test (from_header, subject, body) 
     values (:from_hdr, :subject_hdr, :msgbody)}
-    ns_log Notice "email_handler_test from=$from_hdr subject=$subject_hdr"
+    ns_log debug "email_handler_test: from=$from_hdr subject=$subject_hdr"
 }

@@ -25,7 +25,7 @@ proc email_handler_map_tagged_message {tag msg} {
 	    return ""
 	}
     } 
-    ns_log Notice "email_handler_map_tagged_message couldn't find anything to do with a tag of \"$tag\"
+    ns_log Warning "email_handler_map_tagged_message couldn't find anything to do with a tag of \"$tag\"
 Message:
 $msg
 "
@@ -45,17 +45,17 @@ proc email_handler_process_email_queue {} {
               select tag, content  from incoming_email_queue
 		where id = :id
 	    }
-	    ns_log Notice "email queue processing queued_msg $id"
+	    ns_log debug "email queue processing queued_msg $id"
 	    email_handler_map_tagged_message $tag $content
 	    db_dml delete_from_queue "delete from incoming_email_queue where id = :id"
-	    ns_log Notice "email queue deleted queued_msg $id"
+	    ns_log debug "email queue deleted queued_msg $id"
 	} on_error {
-	    ns_log Notice "email queue processing; transaction ABORTED!"
+	    ns_log Warning "email queue processing; transaction ABORTED! err: $errmsg"
 	    # Remove the offending message from the queue or it will probably 
 	    # trigger the same error next time.
 	    catch { db_dml delete_from_queue "delete from incoming_email_queue where id = :id" }
 	    global errorInfo errorCode
-	    ns_log Notice $errorInfo
+	    ns_log Warning "email_handler_process_email_queue: delete_from_queue error $errorInfo"
 	}
     }
     db_release_unused_handles
@@ -86,7 +86,7 @@ ns_share -init {set email_scheduler_installed 0} email_scheduler_installed
 if {!$email_scheduler_installed} {
     set email_scheduler_installed 1
     set interval [ad_parameter -package_id [email_handler_package_id] QueueSweepInterval email-handler 600]
-    ns_log Notice "email-handler.tcl scheduling process_email_queue to run every $interval seconds."
+    ns_log Notice "email-handler-procs.tcl scheduling email_handler_process_email_queue to run every $interval seconds."
     ad_schedule_proc -thread t $interval email_handler_process_email_queue
 }
 
