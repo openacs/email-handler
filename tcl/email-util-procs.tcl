@@ -5,8 +5,8 @@ ad_library {
     utilities to process incoming emails
 
     @author  hqm@ai.mit.edu
-    @created Dec 4, 2000
-    @cvs-id  email-utils.tcl,v 3.29.2.8 2000/09/14 07:36:30 ron Exp
+    @creation-date Dec 4, 2000
+    @cvs-id $Id$
 }
 
 

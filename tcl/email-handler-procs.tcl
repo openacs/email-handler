@@ -5,7 +5,7 @@ ad_library {
   Scan incoming email queue, and dispatch to assigned handler
   
     @author hqm@arsdigita.com 
-    @cvs-id email-handler.tcl,v 3.4.2.6 2000/08/06 17:01:25 cnk Exp
+    @cvs-id $Id$
 }
 
 
