@@ -1,0 +1,348 @@
+<html>
+<!--AD_DND-->
+<head>
+<title>Email Handler</title>
+</head>
+
+<body bgcolor=#ffffff text=#000000>
+
+<h2>Email Handler</h2>
+
+part of the <a href="index">ArsDigita Community System</a>
+by <a href="http://hqm.ne.mediaone.net">Henry Minsky</a>
+
+<hr>
+
+<ul>
+<li>User-accessible directory:  none
+<li>Site administrator directory: not currently available
+<li>data model :  sql/email-handler-create.sql
+
+<li>Tcl procs:  /tcl/email-handler
+<li>Perl procmail script:  bin/queue-message.pl
+
+</ul>
+
+System dependencies:  you will be in a world of hurt unless you have
+Perl DBI/DBD installed (so that a Perl script on your computer can talk
+to Oracle) and a mailer configured to exec a procedure when mail arrives
+addressed to a particular alias. See Appendix for installation tips.
+
+<h3>The Big Picture</h3>
+
+You can build a gateway for handling incoming email messages for your
+application using a Perl script called
+<code>queue-message.pl</code>. That Perl script will accept an incoming
+email message from the mailer and insert its contents into a queue
+table in the database. A procedure can be scheduled to sweep the queue
+at some interval to process the messages.
+<p>
+
+<h3>Using the <code>queue-message.pl</code> script</h3>
+
+The script takes a list of command-line arguments, which tell it
+which database to connect to, and a classification tag for the message.
+<p>
+<pre>
+  usage: queue_message.pl db_user db_passwd tag
+
+  Inserts the data from stdin into a queue table.
+
+  Assumes the following table and sequence are defined in the db:
+
+    create table incoming_email_queue (
+            id          integer primary key,
+            tag         varchar(256),
+            content             clob,           -- the entire raw message content
+                                                -- including all headers
+            arrival_time        date
+    );
+
+    create sequence incoming_email_queue_sequence;
+
+</pre>
+
+The <b>tag</b> field is a string tag which you can assign
+to a message, so that the routine which sweeps the queue can distinguish where
+it came from. You might use this if you had several different mail recipient aliases
+on your system, which all accept messages and put the into the queue.
+<p>
+
+To configure your mailer, you must add a mailer alias which invokes 
+the script. For sendmail, this would be done in the aliases file. For qmail,
+you create a file in the <code>qmail/alias</code> directory with a name
+<code>.qmail-<i>your-alias-here</i></code>.
+ <p>
+Example: You are setting up an email handler for user feedback messages which
+are addressed to <tt>user-feedback@yourhost</tt>:
+<pre>
+/var/alias/.qmail-user-feedback:
+|/web/yourwebserver/packages/email-handler/bin/queue-message.pl yourdbuser yourdbpassword user_feedback
+</pre>
+
+The alias above specified that incoming messages will be piped to the
+perl script, which will connect to the specified database, and will
+insert the message with the tag "user_feedback".
+<p>
+
+
+Some guidelines: Try to sure that the <i>from</i> and <i>reply-to</i>
+headers on your outgoing message are <b>not</b> the same as your
+incoming mail handler alias. This will help prevent the possibility of
+nasty mailer loops, in the case where messages may bounce or be returned
+for some reason.
+
+<h3>Scheduled Procedures and Parsing Mail Messages</h3>
+
+The Perl script doesn't do anything except fill the
+<code>incoming_email_queue</code> Oracle table.  A scheduled procedure
+, process_email_queue, is launched by the email-handler at server
+startup to sweep the email queue table.  It will dispatch on each
+message tag to call a procedure which you specify in the DispatchTable
+parameter of the email-handler package.
+
+<p>
+<h3>Setting Up A Mapping From A Tag To An Email Handler Procedure</h3>
+
+The email-handle package parameter called <tt>DispatchTable</tt> lets
+you set up a mapping between tagged incoming email messages and Tcl
+procedures to handle them.
+<p>
+The <tt>DispatchTable</tt> parameter should be set to a list of key-value
+pairs where the key matches a tag which you used in your call to
+<tt>queue-message.pl</tt> and the value is the name of  a Tcl procedure
+to run on the message contents.
+<p>
+
+When installing the email handler, you must go to the Site Map on your
+ACS web server and instantiate a copy of the package with the name
+'email-handler'. It should be mounted at /email-handler in order to
+edit it's parameters, although you can probably mount it at another
+URL and it will still work.
+
+<p>
+Once it is mounted, you will see the 
+<tt>DispatchTable</tt> parameter, with a default value as shown:
+<pre>
+  DispatchTable   =>  user_feedback|email_handler_test
+</pre>
+
+The example above specifies that tickets with the tag "user_feedback" will
+be passed to the procedure <code>email_handler_test</code>.
+<p>
+You can set <tt>DispatchTable</tt> to a list of space-separated key-value
+pairs, for example 
+<pre>
+user_feedback|email_handler_test ticket|handle_ticket_tracker_email bboard|handle_bboard_mail
+</pre>
+<p>
+
+The Tcl procedure invoked by the dispatcher is passed one argument, a
+string containing the raw message text including headers. It is up to
+you to parse or handle the message in any way you wish. After the call
+to your dispatch procedure, the message is deleted from the queue.
+
+<h3>Email Handling Utilities</h3>
+Some routines in <code>/tcl/email-utils</code> will help you
+parse the raw mail message contents in the db. 
+<dl>
+<dt><code>parse_email_message <i>message_body</i></code>
+<dd>returns an ns_set mapping each mail header to its value, as well as
+a key named <i>message_body</i> which contains the message body text.
+<dt> clean_up_html <i>html_text</i>
+<dd> Returns the html_text with all HTML escape characters quoted properly.
+</dl>
+
+<h3>Testing The Installation</h3>
+
+<ol>
+<li> Mount the email handler at /email-handler via the Site Map admin pages.
+<p>
+<li> Add  a mapping parameter to the email handler dispatch table which looks like
+
+<pre>
+email-test|email_handler_test
+</pre>
+
+To do this, go to the Site Map page in your ACS admin area, and click <b>Set Parameters</b> on the
+email-handler mount point. Set the parameter DispatchTable to the above value.
+<p>
+<li> Test the installation by manually calling the queue-message.pl script as follows from a shell:
+<pre>
+% /web/yourserver/packages/email-handler/bin/queue-message.pl yourdbuser yourdbpasswd email-test
+this is some
+test email message stuff
+^D
+
+</pre>
+The perl script should insert an entry into the table <tt>incoming_email_queue</tt>,  which should
+then (within 10 minutes) get handled by the email handler test procedure and stuffed into the
+<tt>email_handler_test</tt> table, where it can be viewed by the test web page at /email-handler
+on your server.
+<p>
+
+
+
+<li> Create a mailer alias file to  accept mail for the address <tt>acs-mail-test</tt>
+and stick them into the database with the tag 'email-test':
+
+<pre>
+For qmail,  put the following into a file named
+/var/qmail/alias/.qmail-acs-mail-test
+
+<b>|/web/yourwebserver/packages/email-handler/bin/queue-message.pl <i>yourdbuser</i> <i>yourdbpassword</i> email-test</b>
+</pre>
+
+<p>
+<li> Send email to the address acs-mail-test@yourserver
+<p>
+<li> Check that the mail appears in the /email-handler test page query within ten minutes.
+</ol>
+
+<h3>Tips for Oracle 8i Achievers</h3>
+
+Oracle 8i (8.1.5 and later) includes a Java virtual machine.  You are
+thus able to load up a Java email parsing library that will take apart
+the messages in a queue very nicely (presumably more robustly than the
+Tcl parse_email_message). That would include goodies like parsing out
+MIME attachments. The ACS Webmail package uses this facility. <p>
+
+There is also a new Tcl standard library available from <a
+href=http://dev.scriptics.com/software/tcllib/>http://dev.scriptics.com/software/tcllib/</a>
+which includes MIME decoding routines. This is not loaded by default with
+ACS 4, but can be downloaded and installed if needed.
+
+<hr>
+<a href="mailto:hqm@arsdigita.com">hqm@arsdigita.com</address></a>
+
+<h3>Appendix: Installing Perl DBI</h3>
+
+It is necessary to install the Perl DBI module and DBD Oracle driver
+module.
+ These can be obtained from the web site below:
+<p>
+<a href="http://search.cpan.org/search?module=DBD::Oracle">DBD Oracle Driver</a> 
+
+<p>
+<a href="http://search.cpan.org/search?dist=DBI">Oracle DBI package</a>
+<p>
+
+<h4>Installation</h4>
+
+<ul>
+<li> Untar the Perl DBI and DBD Oracle packages in the packages/email-handler/perl directory
+<p>
+
+<pre>
+% cd perl
+% tar -zxvf DBD-Oracle-1.06.tar.gz
+% tar -zxvf DBI-1.14.tar.gz
+
+<i> Install DBI module</i>
+% cd DBI-1.14
+% perl Makefile.PL
+% make
+% make test
+% su
+# make install
+# cd ..
+
+<i> On Linux (and possibly Solaris), this is needed to allow the
+DBD Oracle driver to find the libcntlsh.so loadable module from the
+Oracle installation.
+</i>
+# export LD_LIBRARY_PATH=/ora8/m01/app/oracle/product/8.1.6/lib
+<i> Install Oracle Driver module</i>
+# cd DBD-Oracle-1.06
+# perl Makefile.PL
+# make
+# make test
+# su 
+# make install
+# cd ..
+</pre>
+
+<p>
+<li> Test the Perl DBI installation using the <tt>test-perl-dbi.pl</tt>
+script in the bin directory. 
+
+<p>It may be necessary to change the location of the Perl executable
+at the start of the <tt>test-perl-dbi</tt> and <tt>queue-message.pl</tt>
+scripts. To find the location of your Perl (> 5.004) executable, you 
+can type
+<pre>
+# <b>type perl</b>  <i>(if you are using bash)</i>
+# perl is hashed (/usr/local/bin/perl)
+or
+# <b>where perl</b> <i>(if you are using csh)</i>
+</pre>
+
+Change the first line of the scripts to this location:
+<pre>
+#!<path to perl>
+</pre>
+<p>
+</ul>
+
+<p>
+Workaround for Problem I experienced with Linux: In the case that Perl
+DBI cannot resolve the Oracle shared library location for the driver,
+you may need to make a shell script to set the environment variable
+LD_LIBRARY_PATH:
+
+I defined a shell script called <tt>queue-message.sh</tt> which sets
+the enviroment for running an Oracle client:
+
+<pre>
+#!/bin/bash
+
+. /etc/profile
+
+export ORACLE_BASE=/ora8/m01/app/oracle
+export ORACLE_HOME=$ORACLE_BASE/product/8.1.6
+export PATH=$PATH:$ORACLE_HOME/bin
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+export ORACLE_SID=ora8
+export ORACLE_TERM=vt100
+export ORA_NLS33=$ORACLE_HOME/ocommon/nls/admin/data
+
+NLS_LANG=.UTF8
+export NLS_LANG
+
+NLS_DATE_FORMAT=YYYY-MM-DD
+export NLS_DATE_FORMAT
+
+TZ=GMT
+export TZ
+
+exec `dirname $0`/queue-message.pl $*
+</pre>
+
+
+
+
+
+<h4>Installing hook from your mailer</h4>
+
+These are instructions for calling the <tt>queue-message.pl</tt>
+script from a mailer when mail arrives to a designated alias or
+aliases.  The instructions are for qmail, but configuring other
+mailers like sendmail to call the script is straightforward, as long
+as you can figure out how to get your mailer to execute a script on
+when an email arrives to a specific address.
+
+<p>
+For qmail, you need to create an alias file. In a standard installation this
+would probably be a file named <tt>/var/qmail/alias/.qmail-<i>your-alias-address</i></tt>,
+containing a call to exec the <tt>queue-message.pl</tt> script:
+
+<pre>
+<b>|/web/yourwebserver/packages/email-handler/bin/queue-message.pl <i>yourdbuser</i> <i>yourdbpassword</i> <i>tagname</i></b>
+</pre>
+
+<p>
+
+
+
+</body>
+</html>
