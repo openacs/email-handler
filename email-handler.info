@@ -26,10 +26,13 @@
             <file type="documentation" path="doc/index.html"/>
             <file type="package_spec" path="email-handler.info"/>
             <file type="data_model_create" db_type="oracle" path="sql/oracle/email-handler-create.sql"/>
+            <file type="data_model_create" db_type="postgresql" path="sql/postgresql/email-handler-create.sql"/>
             <file type="tcl_procs" path="tcl/email-handler-procs.tcl"/>
+            <file type="query_file" path="tcl/email-handler-procs.xql"/>
             <file type="tcl_procs" path="tcl/email-test-procs.tcl"/>
             <file type="tcl_procs" path="tcl/email-util-procs.tcl"/>
             <file type="content_page" path="www/index.tcl"/>
+            <file type="query_file" path="www/index.xql"/>
             <file type="content_page" path="www/scan-queue.tcl"/>
         </files>
         <parameters>
