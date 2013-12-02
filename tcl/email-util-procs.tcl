@@ -83,8 +83,8 @@ Content-Disposition: attachment; filename=\"$dst_filename\"
     append body $encoded_data
     append body "\n--[set mime_boundary]--\n"
     acs_mail_lite::send -to_addr $to -from_addr $from -subject $subject -body $body -extraheaders [list \
-      "Mime-Version" "1.0" \
-      "Content-Type" "multipart/mixed; boundary=\"$mime_boundary\"" \
+      [list "Mime-Version" "1.0"] \
+      [list "Content-Type" "multipart/mixed; boundary=\"$mime_boundary\""] \
     ]
 
 }
