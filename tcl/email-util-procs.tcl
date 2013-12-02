@@ -58,7 +58,7 @@ This attempts to read multiline headers.
     return $result
 }
 
-ad_proc send_email_attachment_from_file {{-to "" -from "" -subject "" -msg "" -src_pathname "" -dst_filename ""}} {Send an email message using ns_sendmail, with a MIME base64 encoded attachment of the file src_pathname. src_pathname is an absolute pathname to a file in the local server filesystem. dst_filename is the name given to the file attachment part in the email message.} {
+ad_proc send_email_attachment_from_file {{-to "" -from "" -subject "" -msg "" -src_pathname "" -dst_filename ""}} {Send an email message using sendmail, with a MIME base64 encoded attachment of the file src_pathname. src_pathname is an absolute pathname to a file in the local server filesystem. dst_filename is the name given to the file attachment part in the email message.} {
 
     set fd [open $src_pathname r]
     fconfigure $fd -encoding binary
@@ -68,10 +68,6 @@ ad_proc send_email_attachment_from_file {{-to "" -from "" -subject "" -msg "" -s
     set encoded_data [ns_uuencode $content]
 
     set mime_boundary "__==NAHDHDH2.28ABSDJxjhkjhsdkjhd___"
-
-    set extra_headers [ns_set create]
-    ns_set update $extra_headers "Mime-Version" "1.0"
-    ns_set update $extra_headers "Content-Type" "multipart/mixed; boundary=\"$mime_boundary\""
 
     append body "--$mime_boundary
 Content-Type: text/plain; charset=\"us-ascii\"
@@ -86,6 +82,9 @@ Content-Disposition: attachment; filename=\"$dst_filename\"
 "
     append body $encoded_data
     append body "\n--[set mime_boundary]--\n"
-    ns_sendmail $to $from $subject $body $extra_headers
+    acs_mail_lite::send -to_addr $to -from_addr $from -subject $subject -body $body -extraheaders [list \
+      "Mime-Version" "1.0" \
+      "Content-Type" "multipart/mixed; boundary=\"$mime_boundary\"" \
+    ]
 
 }
